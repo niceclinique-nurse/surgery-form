@@ -12,15 +12,21 @@
     .segment-box { background-color: #ffffff; border-left: 6px solid #3273dc; padding: 14px; border-radius: 8px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
     .doctor-box { background-color: #f8f9ff; border-left: 6px solid #3273dc; padding: 14px; border-radius: 8px; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
     .doctor-box.extra { border-left-color: #b5c9ff; }
+    .surgery-item { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; }
+    .surgery-item select { flex: 1; font-size: 15px !important; height: 2.4em !important; border-radius: 8px; border: 1px solid #dbdbdb; padding: 0 8px; background: #fff; }
+    .surgery-item input { flex: 1; font-size: 15px !important; height: 2.4em !important; border-radius: 8px; border: 1px solid #dbdbdb; padding: 0 8px; }
+    .surgery-item .del-btn { background: #ff3860; color: #fff; border: none; border-radius: 6px; width: 28px; height: 28px; font-size: 14px; cursor: pointer; flex-shrink: 0; }
     .input, .select select, .textarea { font-size: 16px !important; height: 2.6em !important; border-radius: 8px; }
     .textarea { height: auto !important; }
     .button.is-medium { height: 3rem; font-size: 1.15rem; border-radius: 10px; }
     hr { margin: 1.2rem 0; background-color: #dbdbdb; height: 1px; }
     .columns { margin-bottom: 0; }
     .column { padding-bottom: 0; }
+    .surgery-preview { font-size: 0.82rem; color: #3273dc; margin-top: 4px; min-height: 18px; word-break: break-all; }
     #toast { display:none; position:fixed; bottom:30px; left:50%; transform:translateX(-50%); background:#23d160; color:#fff; padding:14px 28px; border-radius:12px; font-size:1rem; font-weight:bold; z-index:9999; box-shadow:0 4px 16px rgba(0,0,0,0.15); }
     #toast.error { background:#ff3860; }
     .label.is-small { font-size: 0.85rem; color: #555; margin-bottom: 0.25rem; }
+    .category-label { font-size: 0.78rem; color: #888; margin: 4px 0 2px; font-weight: bold; }
   </style>
 </head>
 <body>
@@ -32,7 +38,6 @@
 
   <form id="surgeryForm" onsubmit="submitForm(event)">
 
-    <!-- 分院 / 班別 -->
     <div class="columns is-mobile is-multiline">
       <div class="column is-6">
         <div class="field">
@@ -55,7 +60,6 @@
       </div>
     </div>
 
-    <!-- 手術日期 -->
     <div class="field mt-2">
       <label class="label is-small">📅 手術日期</label>
       <div class="control"><input class="input" type="date" id="date" required></div>
@@ -63,17 +67,15 @@
 
     <hr>
 
-    <!-- 客戶資料 -->
     <div class="field"><label class="field-label-custom">1. 客戶姓名</label><div class="control"><input class="input" type="text" id="patientName" placeholder="請輸入客戶姓名" required></div></div>
     <div class="field"><label class="field-label-custom">2. 客戶生日</label><div class="control"><input class="input" type="date" id="birthday"></div></div>
 
     <hr>
 
-    <!-- 手術醫生 + 手術名稱（每位醫生一組） -->
+    <!-- 醫生 + 手術名稱 -->
     <label class="field-label-custom">3. 手術醫生 ＆ 手術名稱</label>
     <div id="doctorsContainer">
-      <!-- 第一組（主刀） -->
-      <div class="doctor-box" id="doctor-0">
+      <div class="doctor-box" data-doctor-index="0">
         <p class="is-size-7 has-text-grey mb-2">主刀醫生</p>
         <div class="field">
           <label class="label is-small">手術醫生</label>
@@ -86,8 +88,10 @@
           </select></div></div>
         </div>
         <div class="field mt-2">
-          <label class="label is-small">手術名稱</label>
-          <div class="control"><input class="input surgery-name" type="text" placeholder="請輸入手術名稱"></div>
+          <label class="label is-small">手術名稱（可多選，用 + 串聯）</label>
+          <div class="surgery-list"></div>
+          <button type="button" class="button is-small is-light mt-1" onclick="addSurgeryItem(this)">＋ 新增手術項目</button>
+          <div class="surgery-preview"></div>
         </div>
       </div>
     </div>
@@ -95,7 +99,6 @@
 
     <hr>
 
-    <!-- 護理時段 -->
     <h4 class="title is-6 has-text-grey mb-2">⏱️ 護理人員上刀時段紀錄</h4>
     <div id="segmentsContainer">
       <div class="segment-box">
@@ -126,18 +129,25 @@
 
     <hr>
 
-    <!-- 其他欄位 -->
-    <div class="field"><label class="field-label-custom">9. 備註</label><div class="control"><textarea class="textarea" id="note" rows="2" placeholder="請輸入備註說明..."></textarea></div></div>
+    <div class="field">
+      <label class="field-label-custom">9. 備註</label>
+      <div class="control"><textarea class="textarea" id="note" rows="3" placeholder="Key使用耗材(包皮槍尺寸、真皮片/尺寸、粉/量、防水凝膠、膠原蛋白粉、防沾黏玻尿酸）、檢驗所等"></textarea></div>
+    </div>
+
     <div class="field">
       <label class="field-label-custom">10. 麻醉科</label>
       <div class="control"><div class="select is-fullwidth"><select id="anesthesia">
         <option value="">-- 請選擇麻醉設定 --</option>
-        <option value="局麻">局麻</option><option value="麻醫">麻醫</option>
-        <option value="麻姐">麻姐</option><option value="麻醫+麻姐">麻醫+麻姐</option>
+        <option value="局麻">局麻</option>
+        <option value="麻醫">麻醫</option>
+        <option value="麻姐">麻姐</option>
+        <option value="麻醫+麻姐">麻醫+麻姐</option>
+        <option value="舒安甦">舒安甦</option>
       </select></div></div>
     </div>
-    <div class="field"><label class="field-label-custom">11. 第一助手</label><div class="control"><input class="input" type="text" id="firstAssistant" placeholder="請填寫第一助手姓名"></div></div>
-    <div class="field"><label class="field-label-custom">12. 學習診</label><div class="control"><input class="input" type="text" id="learningStatus" placeholder="請填寫學習診狀況"></div></div>
+
+    <div class="field"><label class="field-label-custom">11. 第一助手</label><div class="control"><input class="input" type="text" id="firstAssistant" placeholder="請輸入第一助手醫師姓名"></div></div>
+    <div class="field"><label class="field-label-custom">12. 學習診</label><div class="control"><input class="input" type="text" id="learningStatus" placeholder="請輸入學習醫師/護士姓名"></div></div>
 
     <button type="submit" id="submitBtn" class="button is-link is-fullwidth is-medium mt-5">確認送出整台手術資料</button>
   </form>
@@ -145,6 +155,162 @@
 
 <script>
   const GAS_URL = "https://script.google.com/macros/s/AKfycbyizQWPGpdEiWWO352qlme4m1hBzx4Ah0Smhsemoxacns-1cjli-S0A0fo83CmSd4wm/exec";
+
+  // 手術選單選項
+  const SURGERY_OPTIONS = [
+    { label: "── 男性 ──", value: "", disabled: true },
+    { label: "結紮", value: "結紮" },
+    { label: "包皮槍", value: "包皮槍" },
+    { label: "自體增粗", value: "自體增粗" },
+    { label: "雷射割包皮", value: "雷射割包皮" },
+    { label: "背神經阻斷", value: "背神經阻斷" },
+    { label: "陰阜抽脂", value: "陰阜抽脂", subType: "陰阜抽脂" },
+    { label: "音浪", value: "音浪" },
+    { label: "陰莖異體增粗", value: "陰莖異體增粗" },
+    { label: "陰莖增長", value: "陰莖增長" },
+    { label: "陰莖靜脈截除術", value: "陰莖靜脈截除術" },
+    { label: "陰莖彎曲", value: "陰莖彎曲" },
+    { label: "輸精管接回", value: "輸精管接回" },
+    { label: "龜頭增大", value: "龜頭增大" },
+    { label: "繫帶整形", value: "繫帶整形" },
+    { label: "── 整外 ──", value: "", disabled: true },
+    { label: "威塑抽脂>>(部位)", value: "威塑抽脂", subType: "部位" },
+    { label: "音浪LSSA>>(部位)", value: "音浪LSSA", subType: "部位" },
+    { label: "隆乳>>(材質)", value: "隆乳", subType: "材質" },
+    { label: "抽脂補脂>>(部位)", value: "抽脂補脂", subType: "部位" },
+    { label: "拉皮>>(部位)", value: "拉皮", subType: "部位" },
+    { label: "超能電漿>>(部位)", value: "超能電漿", subType: "部位" },
+    { label: "男性女乳症(威塑溶脂)", value: "男性女乳症(威塑溶脂)" },
+    { label: "眼袋內開", value: "眼袋內開" },
+    { label: "眼袋外開", value: "眼袋外開" },
+    { label: "割雙眼皮", value: "割雙眼皮" },
+    { label: "縫雙眼皮", value: "縫雙眼皮" },
+    { label: "提眼瞼肌", value: "提眼瞼肌" },
+    { label: "── 其他 ──", value: "", disabled: true },
+    { label: "修疤", value: "修疤" },
+    { label: "清創", value: "清創" },
+    { label: "縫傷口", value: "縫傷口" },
+    { label: "訊聯取脂", value: "訊聯取脂" },
+    { label: "── 自行輸入 ──", value: "__custom__" }
+  ];
+
+  function buildSelectOptions() {
+    return SURGERY_OPTIONS.map(opt => {
+      if (opt.disabled) return `<option value="" disabled>${opt.label}</option>`;
+      return `<option value="${opt.value}">${opt.label}</option>`;
+    }).join('');
+  }
+
+  function addSurgeryItem(btn) {
+    const doctorBox = btn.closest('.doctor-box');
+    const list = doctorBox.querySelector('.surgery-list');
+    const preview = doctorBox.querySelector('.surgery-preview');
+
+    const item = document.createElement('div');
+    item.className = 'surgery-item';
+    item.innerHTML = `
+      <select onchange="handleSurgeryChange(this)">${buildSelectOptions()}</select>
+      <button type="button" class="del-btn" onclick="removeSurgeryItem(this)">✕</button>
+    `;
+    list.appendChild(item);
+    updatePreview(doctorBox);
+  }
+
+  function handleSurgeryChange(sel) {
+    const item = sel.closest('.surgery-item');
+    const doctorBox = sel.closest('.doctor-box');
+
+    // 移除舊的子欄位
+    const oldSub = item.querySelector('.surgery-sub');
+    if (oldSub) oldSub.remove();
+
+    if (sel.value === '__custom__') {
+      // 自行輸入 → 換成 input
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.placeholder = '請輸入手術名稱';
+      input.className = 'surgery-custom-input';
+      input.oninput = () => updatePreview(doctorBox);
+      item.replaceChild(input, sel);
+      updatePreview(doctorBox);
+      return;
+    }
+
+    // 找到對應的 option 設定
+    const opt = SURGERY_OPTIONS.find(o => o.value === sel.value);
+    if (opt && opt.subType) {
+      if (opt.subType === '陰阜抽脂') {
+        // 跳出選單：威塑 或 音浪
+        const sub = document.createElement('select');
+        sub.className = 'surgery-sub';
+        sub.style.cssText = 'flex:1;font-size:15px!important;height:2.4em!important;border-radius:8px;border:1px solid #dbdbdb;padding:0 8px;background:#fff;margin-top:6px;';
+        sub.innerHTML = '<option value="">── 選擇方式 ──</option><option value="威塑">威塑</option><option value="音浪">音浪</option>';
+        sub.onchange = () => updatePreview(doctorBox);
+        item.appendChild(sub);
+      } else {
+        // 部位 或 材質 → 跳出輸入框
+        const subInput = document.createElement('input');
+        subInput.type = 'text';
+        subInput.placeholder = opt.subType;  // 灰字顯示「部位」或「材質」
+        subInput.className = 'surgery-sub';
+        subInput.style.cssText = 'flex:1;font-size:15px!important;height:2.4em!important;border-radius:8px;border:1px solid #dbdbdb;padding:0 8px;margin-top:6px;';
+        subInput.oninput = () => updatePreview(doctorBox);
+        item.appendChild(subInput);
+      }
+    }
+
+    updatePreview(doctorBox);
+  }
+
+  function removeSurgeryItem(btn) {
+    const item = btn.closest('.surgery-item');
+    const doctorBox = item.closest('.doctor-box');
+    item.remove();
+    updatePreview(doctorBox);
+  }
+
+  function updatePreview(doctorBox) {
+    const items = doctorBox.querySelectorAll('.surgery-item');
+    const values = [];
+    items.forEach(item => {
+      const v = getSurgeryItemValue(item);
+      if (v) values.push(v);
+    });
+    const preview = doctorBox.querySelector('.surgery-preview');
+    preview.textContent = values.length ? '➤ ' + values.join('+') : '';
+  }
+
+  function getSurgeryItemValue(item) {
+    const sel = item.querySelector('select');
+    const inp = item.querySelector('input.surgery-custom-input');
+    const sub = item.querySelector('.surgery-sub');
+
+    if (inp) return inp.value.trim();  // 自行輸入
+
+    if (!sel || !sel.value) return '';
+
+    const opt = SURGERY_OPTIONS.find(o => o.value === sel.value);
+    if (opt && opt.subType) {
+      if (opt.subType === '陰阜抽脂') {
+        const subVal = sub ? sub.value : '';
+        return subVal ? sel.value + '>>' + subVal : sel.value;
+      } else {
+        const subVal = sub ? sub.value.trim() : '';
+        return subVal ? sel.value + '>>(' + subVal + ')' : sel.value + '>>(' + opt.subType + ')';
+      }
+    }
+    return sel.value;
+  }
+
+  function getSurgeryName(doctorBox) {
+    const items = doctorBox.querySelectorAll('.surgery-item');
+    const values = [];
+    items.forEach(item => {
+      const v = getSurgeryItemValue(item);
+      if (v) values.push(v);
+    });
+    return values.join('+');
+  }
 
   function setDefaultDate() {
     document.getElementById('date').value = new Date().toISOString().substring(0, 10);
@@ -156,7 +322,7 @@
     t.textContent = msg;
     t.className = isError ? 'error' : '';
     t.style.display = 'block';
-    setTimeout(() => { t.style.display = 'none'; }, 3000);
+    setTimeout(() => { t.style.display = 'none'; }, 3500);
   }
 
   let doctorCount = 1;
@@ -166,6 +332,7 @@
     const container = document.getElementById('doctorsContainer');
     const div = document.createElement('div');
     div.className = 'doctor-box extra';
+    div.setAttribute('data-doctor-index', doctorCount - 1);
     div.innerHTML = `
       <p class="is-size-7 has-text-grey mb-2">協同醫生 #${doctorCount}</p>
       <div class="field">
@@ -179,8 +346,10 @@
         </select></div></div>
       </div>
       <div class="field mt-2">
-        <label class="label is-small">手術名稱</label>
-        <div class="control"><input class="input surgery-name" type="text" placeholder="請輸入手術名稱"></div>
+        <label class="label is-small">手術名稱（可多選，用 + 串聯）</label>
+        <div class="surgery-list"></div>
+        <button type="button" class="button is-small is-light mt-1" onclick="addSurgeryItem(this)">＋ 新增手術項目</button>
+        <div class="surgery-preview"></div>
       </div>`;
     container.appendChild(div);
   }
@@ -223,7 +392,7 @@
     setDefaultDate();
     doctorCount = 1;
     document.getElementById('doctorsContainer').innerHTML = `
-      <div class="doctor-box" id="doctor-0">
+      <div class="doctor-box" data-doctor-index="0">
         <p class="is-size-7 has-text-grey mb-2">主刀醫生</p>
         <div class="field">
           <label class="label is-small">手術醫生</label>
@@ -236,8 +405,10 @@
           </select></div></div>
         </div>
         <div class="field mt-2">
-          <label class="label is-small">手術名稱</label>
-          <div class="control"><input class="input surgery-name" type="text" placeholder="請輸入手術名稱"></div>
+          <label class="label is-small">手術名稱（可多選，用 + 串聯）</label>
+          <div class="surgery-list"></div>
+          <button type="button" class="button is-small is-light mt-1" onclick="addSurgeryItem(this)">＋ 新增手術項目</button>
+          <div class="surgery-preview"></div>
         </div>
       </div>`;
     segmentCount = 1;
@@ -273,11 +444,10 @@
     btn.classList.add('is-loading');
     btn.disabled = true;
 
-    // 收集每位醫生 + 對應手術名稱
     const doctorsArray = [];
     document.querySelectorAll('#doctorsContainer .doctor-box').forEach(box => {
       const name = box.querySelector('.doctor-select').value;
-      const sName = box.querySelector('.surgery-name').value;
+      const sName = getSurgeryName(box);
       if (name) doctorsArray.push({ name, surgeryName: sName });
     });
 
